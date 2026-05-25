@@ -4,7 +4,7 @@ import type { BusinessProfileFormValues, BusinessProfileSubmitValues } from "@/l
 const STORAGE_KEY = "karoshd.localDraftKits";
 const LOCAL_USER_ID = "local-demo-user";
 
-type LocalDraftBusinessProfile = Partial<BusinessProfileFormValues> & {
+export type LocalDraftBusinessProfile = Partial<BusinessProfileFormValues> & {
   id: string;
   kitId: string;
   createdAt: string;
@@ -67,6 +67,10 @@ export function readLocalDraftKits(): LocalDraftKit[] {
   } catch {
     return [];
   }
+}
+
+export function getLocalDraftKitById(id: string): LocalDraftKit | undefined {
+  return readLocalDraftKits().find((draft) => draft.kit.id === id);
 }
 
 export function clearLocalDraftKits() {

@@ -48,13 +48,13 @@ export function LocalDraftKits({ compact = false }: { compact?: boolean }) {
       {visibleDrafts.length > 0 ? (
         <div className="grid gap-4">
           {visibleDrafts.map((draft) => (
-            <KitCard
-              key={draft.kit.id}
-              kit={toKitCardData(draft)}
-              label="ذخیره‌شده روی همین مرورگر"
-              href="/dashboard/kits/demo-kit"
-            />
-          ))}
+          <KitCard
+            key={draft.kit.id}
+            kit={toKitCardData(draft)}
+            label="ذخیره‌شده روی همین مرورگر"
+            href={`/dashboard/kits/${draft.kit.id}`}
+          />
+        ))}
         </div>
       ) : null}
     </section>
