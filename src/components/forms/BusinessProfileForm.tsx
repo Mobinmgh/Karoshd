@@ -1,7 +1,20 @@
 "use client";
 
-import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import {
+  type FieldError,
+  type FieldErrors,
+  type UseFormRegister,
+  useForm,
+} from "react-hook-form";
+import { saveLocalDraftKit } from "@/lib/storage/local-drafts";
+import {
+  businessProfileDefaultValues,
+  businessProfileSchema,
+  type BusinessProfileFormValues,
+} from "@/lib/validators/business-profile";
 
 const steps = [
   "اطلاعات کسب‌وکار",
@@ -13,40 +26,12 @@ const steps = [
 ] as const;
 
 type FieldType = "input" | "textarea" | "select";
+type FieldName = keyof BusinessProfileFormValues;
 
-type FieldName =
-  | "businessName"
-  | "businessType"
-  | "niche"
-  | "cityOrMarket"
-  | "mainProductOrService"
-  | "priceRange"
-  | "currentSalesModel"
-  | "targetCustomer"
-  | "customerPain"
-  | "desiredCustomerOutcome"
-  | "customerObjections"
-  | "purchaseReason"
-  | "currentInstagramHandle"
-  | "currentFollowers"
-  | "averageViews"
-  | "currentBio"
-  | "currentMainProblem"
-  | "bestContentSoFar"
-  | "lowSalesReason"
-  | "proofAssets"
-  | "testimonials"
-  | "beforeAfter"
-  | "licenses"
-  | "previousBrands"
-  | "trustAssets"
-  | "brandTone"
-  | "formality"
-  | "simplicity"
-  | "contentTone"
-  | "extraNotes";
-
-type FormState = Record<FieldName, string>;
+type FieldOption = {
+  label: string;
+  value: string;
+};
 
 type FieldConfig = {
   name: FieldName;
@@ -54,46 +39,13 @@ type FieldConfig = {
   helper?: string;
   placeholder: string;
   type: FieldType;
-  options?: string[];
+  options?: FieldOption[];
 };
 
 type StepConfig = {
   title: (typeof steps)[number];
   description: string;
   fields: FieldConfig[];
-};
-
-const initialFormState: FormState = {
-  businessName: "",
-  businessType: "",
-  niche: "",
-  cityOrMarket: "",
-  mainProductOrService: "",
-  priceRange: "",
-  currentSalesModel: "",
-  targetCustomer: "",
-  customerPain: "",
-  desiredCustomerOutcome: "",
-  customerObjections: "",
-  purchaseReason: "",
-  currentInstagramHandle: "",
-  currentFollowers: "",
-  averageViews: "",
-  currentBio: "",
-  currentMainProblem: "",
-  bestContentSoFar: "",
-  lowSalesReason: "",
-  proofAssets: "",
-  testimonials: "",
-  beforeAfter: "",
-  licenses: "",
-  previousBrands: "",
-  trustAssets: "",
-  brandTone: "",
-  formality: "",
-  simplicity: "",
-  contentTone: "",
-  extraNotes: "",
 };
 
 const stepConfigs: StepConfig[] = [
@@ -185,7 +137,7 @@ const stepConfigs: StepConfig[] = [
   },
   {
     title: "پیج اینستاگرام",
-    description: "برای فاز اول، تحلیل پیج فقط بر اساس اطلاعاتی است که اینجا وارد می‌کنی.",
+    description: "برای این فاز، تحلیل پیج فقط بر اساس اطلاعاتی است که اینجا وارد می‌کنی.",
     fields: [
       {
         name: "currentInstagramHandle",
@@ -282,28 +234,47 @@ const stepConfigs: StepConfig[] = [
         label: "لحن برند",
         placeholder: "انتخاب کن",
         type: "select",
-        options: ["حرفه‌ای", "صمیمی", "لوکس", "جسور", "آموزشی", "ساده"],
+        options: [
+          { label: "حرفه‌ای", value: "professional" },
+          { label: "صمیمی", value: "friendly" },
+          { label: "لوکس", value: "luxury" },
+          { label: "جسور", value: "bold" },
+          { label: "آموزشی", value: "educational" },
+          { label: "ساده", value: "simple" },
+        ],
       },
       {
         name: "formality",
         label: "رسمی یا خودمانی",
         placeholder: "انتخاب کن",
         type: "select",
-        options: ["رسمی", "نیمه‌رسمی", "خودمانی"],
+        options: [
+          { label: "رسمی", value: "رسمی" },
+          { label: "نیمه‌رسمی", value: "نیمه‌رسمی" },
+          { label: "خودمانی", value: "خودمانی" },
+        ],
       },
       {
         name: "simplicity",
         label: "ساده یا لوکس",
         placeholder: "انتخاب کن",
         type: "select",
-        options: ["ساده و مستقیم", "متعادل", "لوکس و دقیق"],
+        options: [
+          { label: "ساده و مستقیم", value: "ساده و مستقیم" },
+          { label: "متعادل", value: "متعادل" },
+          { label: "لوکس و دقیق", value: "لوکس و دقیق" },
+        ],
       },
       {
         name: "contentTone",
         label: "آموزشی یا فروش‌محور",
         placeholder: "انتخاب کن",
         type: "select",
-        options: ["آموزشی", "فروش‌محور", "ترکیبی"],
+        options: [
+          { label: "آموزشی", value: "آموزشی" },
+          { label: "فروش‌محور", value: "فروش‌محور" },
+          { label: "ترکیبی", value: "ترکیبی" },
+        ],
       },
       {
         name: "extraNotes",
@@ -321,23 +292,50 @@ const reviewGroups = stepConfigs.map((step) => ({
 }));
 
 export function BusinessProfileForm() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const [values, setValues] = useState<FormState>(initialFormState);
+  const [saveMessage, setSaveMessage] = useState("");
+
+  const {
+    register,
+    handleSubmit,
+    trigger,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<BusinessProfileFormValues>({
+    resolver: zodResolver(businessProfileSchema),
+    defaultValues: businessProfileDefaultValues,
+    mode: "onTouched",
+  });
 
   const activeStep = stepConfigs[currentStep];
   const isReviewStep = currentStep === steps.length - 1;
+  const watchedValues = watch();
   const progress = useMemo(() => Math.round(((currentStep + 1) / steps.length) * 100), [currentStep]);
 
-  function updateField(name: FieldName, value: string) {
-    setValues((currentValues) => ({ ...currentValues, [name]: value }));
-  }
+  async function goNext() {
+    const fieldNames = activeStep.fields.map((field) => field.name);
+    const isStepValid = await trigger(fieldNames, { shouldFocus: true });
 
-  function goNext() {
-    setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
+    if (isStepValid) {
+      setSaveMessage("");
+      setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
+    }
   }
 
   function goPrevious() {
+    setSaveMessage("");
     setCurrentStep((step) => Math.max(step - 1, 0));
+  }
+
+  function saveDraft(values: BusinessProfileFormValues) {
+    saveLocalDraftKit(values);
+    setSaveMessage("پیش‌نویس روی همین مرورگر ذخیره شد.");
+  }
+
+  function submitFinal(values: BusinessProfileFormValues) {
+    saveLocalDraftKit(values);
+    router.push("/dashboard/kits/demo-kit");
   }
 
   return (
@@ -345,7 +343,9 @@ export function BusinessProfileForm() {
       <aside className="card h-fit lg:sticky lg:top-5">
         <div className="mb-5">
           <p className="text-sm font-bold text-slate-950">مراحل فرم</p>
-          <p className="mt-1 text-xs text-slate-500">مرحله {toPersianNumber(currentStep + 1)} از {toPersianNumber(steps.length)}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            مرحله {toPersianNumber(currentStep + 1)} از {toPersianNumber(steps.length)}
+          </p>
         </div>
         <div className="mb-5 h-2 rounded-full bg-slate-100">
           <div className="h-2 rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
@@ -375,41 +375,47 @@ export function BusinessProfileForm() {
         </ol>
       </aside>
 
-      <form className="card" aria-label="فرم ساخت کیت رشد" onSubmit={(event) => event.preventDefault()}>
+      <form className="card" aria-label="فرم ساخت کیت رشد" onSubmit={handleSubmit(submitFinal)} noValidate>
         <div className="border-b border-slate-100 pb-5">
-          <p className="text-sm font-bold text-blue-700">مرحله {toPersianNumber(currentStep + 1)} از {toPersianNumber(steps.length)}</p>
+          <p className="text-sm font-bold text-blue-700">
+            مرحله {toPersianNumber(currentStep + 1)} از {toPersianNumber(steps.length)}
+          </p>
           <h2 className="mt-2 text-2xl font-extrabold text-slate-950">
             {isReviewStep ? "مرور نهایی" : activeStep.title}
           </h2>
           <p className="mt-2 max-w-2xl text-base leading-8 text-slate-600">
             {isReviewStep
-              ? "قبل از مشاهده گزارش نمونه، اطلاعات واردشده را مرور کن. در این فاز داده‌ای ذخیره یا ارسال نمی‌شود."
+              ? "قبل از مشاهده گزارش نمونه، اطلاعات واردشده را مرور کن. با ثبت نهایی، داده فقط روی همین مرورگر ذخیره می‌شود."
               : activeStep.description}
           </p>
         </div>
 
         {isReviewStep ? (
-          <ReviewScreen values={values} onEditStep={setCurrentStep} />
+          <ReviewScreen values={watchedValues} onEditStep={setCurrentStep} />
         ) : (
           <div className="mt-6 grid gap-5">
             {activeStep.fields.map((field) => (
-              <FormField key={field.name} field={field} value={values[field.name]} onChange={updateField} />
+              <FormField key={field.name} field={field} register={register} error={errors[field.name]} />
             ))}
           </div>
         )}
 
+        {saveMessage ? (
+          <p className="mt-5 rounded-xl bg-green-100 px-4 py-3 text-sm font-bold text-green-700">{saveMessage}</p>
+        ) : null}
+
         <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" className="btn-secondary w-full sm:w-auto" onClick={goPrevious} disabled={currentStep === 0}>
+          <button type="button" className="btn-secondary w-full disabled:opacity-50 sm:w-auto" onClick={goPrevious} disabled={currentStep === 0}>
             بازگشت
           </button>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="button" className="btn-secondary w-full sm:w-auto">
+            <button type="button" className="btn-secondary w-full sm:w-auto" onClick={handleSubmit(saveDraft)}>
               ذخیره پیش‌نویس
             </button>
             {isReviewStep ? (
-              <Link href="/dashboard/kits/demo-kit" className="btn-primary w-full sm:w-auto">
-                مشاهده گزارش نمونه
-              </Link>
+              <button type="submit" className="btn-primary w-full sm:w-auto" disabled={isSubmitting}>
+                ثبت و مشاهده گزارش نمونه
+              </button>
             ) : (
               <button type="button" className="btn-primary w-full sm:w-auto" onClick={goNext}>
                 ادامه
@@ -424,14 +430,15 @@ export function BusinessProfileForm() {
 
 function FormField({
   field,
-  value,
-  onChange,
+  register,
+  error,
 }: {
   field: FieldConfig;
-  value: string;
-  onChange: (name: FieldName, value: string) => void;
+  register: UseFormRegister<BusinessProfileFormValues>;
+  error?: FieldError;
 }) {
   const id = `field-${field.name}`;
+  const errorId = `${id}-error`;
 
   return (
     <label htmlFor={id} className="grid gap-2">
@@ -442,20 +449,22 @@ function FormField({
           id={id}
           className="form-textarea"
           placeholder={field.placeholder}
-          value={value}
-          onChange={(event) => onChange(field.name, event.target.value)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          {...register(field.name)}
         />
       ) : field.type === "select" ? (
         <select
           id={id}
           className="form-input"
-          value={value}
-          onChange={(event) => onChange(field.name, event.target.value)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          {...register(field.name)}
         >
           <option value="">{field.placeholder}</option>
           {field.options?.map((option) => (
-            <option key={option} value={option}>
-              {option}
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>
@@ -464,10 +473,16 @@ function FormField({
           id={id}
           className="form-input"
           placeholder={field.placeholder}
-          value={value}
-          onChange={(event) => onChange(field.name, event.target.value)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          {...register(field.name)}
         />
       )}
+      {error?.message ? (
+        <span id={errorId} className="text-sm font-bold leading-7 text-red-600">
+          {error.message}
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -476,7 +491,7 @@ function ReviewScreen({
   values,
   onEditStep,
 }: {
-  values: FormState;
+  values: BusinessProfileFormValues;
   onEditStep: (step: number) => void;
 }) {
   return (
@@ -494,7 +509,7 @@ function ReviewScreen({
               <div key={field.name} className="rounded-xl border border-slate-200 bg-white p-4">
                 <dt className="text-xs font-bold text-slate-500">{field.label}</dt>
                 <dd className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-800">
-                  {values[field.name] || "وارد نشده"}
+                  {getReviewValue(field.name, values[field.name])}
                 </dd>
               </div>
             ))}
@@ -504,6 +519,27 @@ function ReviewScreen({
     </div>
   );
 }
+
+function getReviewValue(fieldName: FieldName, value: string | undefined) {
+  if (!value) {
+    return "وارد نشده";
+  }
+
+  if (fieldName === "brandTone") {
+    return brandToneLabels[value] ?? value;
+  }
+
+  return value;
+}
+
+const brandToneLabels: Record<string, string> = {
+  professional: "حرفه‌ای",
+  friendly: "صمیمی",
+  luxury: "لوکس",
+  bold: "جسور",
+  educational: "آموزشی",
+  simple: "ساده",
+};
 
 function toPersianNumber(value: number) {
   return new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(value);

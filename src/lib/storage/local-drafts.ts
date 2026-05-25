@@ -1,0 +1,78 @@
+import type { BusinessProfile, KaroshdKit } from "@/types/business-kit";
+import type { BusinessProfileFormValues } from "@/lib/validators/business-profile";
+
+const STORAGE_KEY = "karoshd.localDraftKits";
+const LOCAL_USER_ID = "local-demo-user";
+
+export type LocalDraftKit = {
+  kit: KaroshdKit;
+  businessProfile: BusinessProfile;
+};
+
+export function saveLocalDraftKit(values: BusinessProfileFormValues): LocalDraftKit {
+  const now = new Date().toISOString();
+  const kitId = createLocalId("kit");
+  const profileId = createLocalId("profile");
+
+  const kit: KaroshdKit = {
+    id: kitId,
+    userId: LOCAL_USER_ID,
+    title: `کیت رشد ${values.businessName}`,
+    businessName: values.businessName,
+    businessType: values.businessType,
+    niche: values.niche,
+    status: "draft",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const businessProfile: BusinessProfile = {
+    id: profileId,
+    kitId,
+    ...values,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const draftKit = { kit, businessProfile };
+  const existingDrafts = readLocalDraftKits();
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify([draftKit, ...existingDrafts]));
+
+  return draftKit;
+}
+
+export function readLocalDraftKits(): LocalDraftKit[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const rawValue = window.localStorage.getItem(STORAGE_KEY);
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    const parsedValue: unknown = JSON.parse(rawValue);
+    return Array.isArray(parsedValue) ? parsedValue.filter(isLocalDraftKit) : [];
+  } catch {
+    return [];
+  }
+}
+
+function createLocalId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function isLocalDraftKit(value: unknown): value is LocalDraftKit {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<LocalDraftKit>;
+  return Boolean(
+    candidate.kit &&
+      candidate.businessProfile &&
+      typeof candidate.kit.id === "string" &&
+      typeof candidate.businessProfile.id === "string",
+  );
+}
