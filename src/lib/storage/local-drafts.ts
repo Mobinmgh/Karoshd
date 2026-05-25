@@ -69,6 +69,14 @@ export function readLocalDraftKits(): LocalDraftKit[] {
   }
 }
 
+export function clearLocalDraftKits() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(STORAGE_KEY);
+}
+
 function createLocalId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }

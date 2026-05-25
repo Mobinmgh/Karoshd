@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KitCard } from "@/components/kit/KitCard";
+import { LocalDraftKits } from "@/components/kit/LocalDraftKits";
 import { mockKits } from "@/lib/mock-data";
 
 export default function DashboardPage() {
@@ -35,7 +36,8 @@ export default function DashboardPage() {
             مشاهده همه
           </Link>
         </div>
-        <div className="grid gap-4">
+        <div className="grid gap-6">
+          <LocalDraftKits compact />
           {mockKits.map((kit) => (
             <KitCard key={kit.id} kit={kit} />
           ))}
