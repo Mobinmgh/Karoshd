@@ -1,32 +1,42 @@
 import type { BusinessProfile, KaroshdKit } from "@/types/business-kit";
-import type { BusinessProfileFormValues } from "@/lib/validators/business-profile";
+import type { BusinessProfileFormValues, BusinessProfileSubmitValues } from "@/lib/validators/business-profile";
 
 const STORAGE_KEY = "karoshd.localDraftKits";
 const LOCAL_USER_ID = "local-demo-user";
 
-export type LocalDraftKit = {
-  kit: KaroshdKit;
-  businessProfile: BusinessProfile;
+type LocalDraftBusinessProfile = Partial<BusinessProfileFormValues> & {
+  id: string;
+  kitId: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
-export function saveLocalDraftKit(values: BusinessProfileFormValues): LocalDraftKit {
+export type LocalDraftKit = {
+  kit: KaroshdKit;
+  businessProfile: BusinessProfile | LocalDraftBusinessProfile;
+};
+
+export function saveLocalDraftKit(values: Partial<BusinessProfileFormValues> | BusinessProfileSubmitValues): LocalDraftKit {
   const now = new Date().toISOString();
   const kitId = createLocalId("kit");
   const profileId = createLocalId("profile");
+  const businessName = normalizeDraftTitle(values.businessName, "پیش‌نویس بدون نام");
+  const businessType = normalizeDraftTitle(values.businessType, "نوع کسب‌وکار وارد نشده");
+  const niche = normalizeDraftTitle(values.niche, "حوزه فعالیت وارد نشده");
 
   const kit: KaroshdKit = {
     id: kitId,
     userId: LOCAL_USER_ID,
-    title: `کیت رشد ${values.businessName}`,
-    businessName: values.businessName,
-    businessType: values.businessType,
-    niche: values.niche,
+    title: `کیت رشد ${businessName}`,
+    businessName,
+    businessType,
+    niche,
     status: "draft",
     createdAt: now,
     updatedAt: now,
   };
 
-  const businessProfile: BusinessProfile = {
+  const businessProfile: LocalDraftBusinessProfile = {
     id: profileId,
     kitId,
     ...values,
@@ -61,6 +71,11 @@ export function readLocalDraftKits(): LocalDraftKit[] {
 
 function createLocalId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeDraftTitle(value: string | undefined, fallback: string) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : fallback;
 }
 
 function isLocalDraftKit(value: unknown): value is LocalDraftKit {

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const requiredText = (message: string) => z.string().trim().min(1, message);
 const optionalText = z.string().trim().optional();
+const brandToneValues = ["professional", "friendly", "luxury", "bold", "educational", "simple"] as const;
 
 export const businessProfileSchema = z.object({
   businessName: requiredText("نام کسب‌وکار را وارد کن."),
@@ -33,16 +34,19 @@ export const businessProfileSchema = z.object({
   previousBrands: optionalText,
   trustAssets: optionalText,
 
-  brandTone: z.enum(["professional", "friendly", "luxury", "bold", "educational", "simple"], {
-    message: "لحن برند را انتخاب کن.",
-  }),
+  brandTone: requiredText("لحن برند را انتخاب کن.").pipe(
+    z.enum(brandToneValues, {
+      message: "لحن برند را انتخاب کن.",
+    }),
+  ),
   formality: optionalText,
   simplicity: optionalText,
   contentTone: optionalText,
   extraNotes: optionalText,
 });
 
-export type BusinessProfileFormValues = z.infer<typeof businessProfileSchema>;
+export type BusinessProfileFormValues = z.input<typeof businessProfileSchema>;
+export type BusinessProfileSubmitValues = z.output<typeof businessProfileSchema>;
 
 export const businessProfileDefaultValues: BusinessProfileFormValues = {
   businessName: "",
@@ -70,7 +74,7 @@ export const businessProfileDefaultValues: BusinessProfileFormValues = {
   licenses: "",
   previousBrands: "",
   trustAssets: "",
-  brandTone: "professional",
+  brandTone: "",
   formality: "",
   simplicity: "",
   contentTone: "",

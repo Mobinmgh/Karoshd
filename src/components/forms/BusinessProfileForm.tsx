@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   type FieldError,
-  type FieldErrors,
   type UseFormRegister,
   useForm,
 } from "react-hook-form";
@@ -14,6 +13,7 @@ import {
   businessProfileDefaultValues,
   businessProfileSchema,
   type BusinessProfileFormValues,
+  type BusinessProfileSubmitValues,
 } from "@/lib/validators/business-profile";
 
 const steps = [
@@ -299,10 +299,11 @@ export function BusinessProfileForm() {
   const {
     register,
     handleSubmit,
+    getValues,
     trigger,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<BusinessProfileFormValues>({
+  } = useForm<BusinessProfileFormValues, unknown, BusinessProfileSubmitValues>({
     resolver: zodResolver(businessProfileSchema),
     defaultValues: businessProfileDefaultValues,
     mode: "onTouched",
@@ -328,12 +329,12 @@ export function BusinessProfileForm() {
     setCurrentStep((step) => Math.max(step - 1, 0));
   }
 
-  function saveDraft(values: BusinessProfileFormValues) {
-    saveLocalDraftKit(values);
+  function saveDraft() {
+    saveLocalDraftKit(getValues());
     setSaveMessage("پیش‌نویس روی همین مرورگر ذخیره شد.");
   }
 
-  function submitFinal(values: BusinessProfileFormValues) {
+  function submitFinal(values: BusinessProfileSubmitValues) {
     saveLocalDraftKit(values);
     router.push("/dashboard/kits/demo-kit");
   }
@@ -409,7 +410,7 @@ export function BusinessProfileForm() {
             بازگشت
           </button>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="button" className="btn-secondary w-full sm:w-auto" onClick={handleSubmit(saveDraft)}>
+            <button type="button" className="btn-secondary w-full sm:w-auto" onClick={saveDraft}>
               ذخیره پیش‌نویس
             </button>
             {isReviewStep ? (
